@@ -1,12 +1,18 @@
 import requests
 import json
 
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+apillama=os.getenv('CHAVE_LLAMA')
+
 pergunta = input()
 
 response = requests.post(
   url="https://openrouter.ai/api/v1/chat/completions",
   headers={
-    "Authorization": "Bearer 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",
+    "Authorization": apillama,
   },
    data=json.dumps({
         "model": "meta-llama/llama-3.1-8b-instruct:free",  # Optional

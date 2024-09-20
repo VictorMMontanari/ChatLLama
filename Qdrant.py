@@ -1,5 +1,11 @@
 from qdrant_client import models, QdrantClient
 from sentence_transformers import SentenceTransformer
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+urlQdrant=os.getenv('DATABASE_URL')
+apiQdrant=os.getenv('CHAVE_QDRANT')
 
 encoder = SentenceTransformer("all-MiniLM-L6-v2")
 
@@ -2407,8 +2413,8 @@ documents = [
 ]
 
 client = QdrantClient(
-    url="https://c5207a83-ac51-4978-8d09-1bdb09c0f6e0.europe-west3-0.gcp.cloud.qdrant.io",
-    api_key="TQhLsfMdUtyv-omn37X17XyHK9orA-qpmKibLkADcbRzCLK7DZRFLQ"
+    url=urlQdrant,
+    api_key=apiQdrant
     )
 
 client.create_collection(
