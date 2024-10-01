@@ -5,11 +5,11 @@ import json
 from dotenv import load_dotenv
 import os
 
-from flask_cors import CORS  # Importa CORS
+from flask_cors import CORS
+from langchain.memory import ConversationBufferMemory  # Importando memória do LangChain
 
 app = Flask(__name__)
-CORS(app)  # Permite CORS para todas as rotas
-
+CORS(app)
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -23,8 +23,11 @@ qdrant_client = QdrantClient(
     api_key=apiQdrant
 )
 
+# Inicializando memória do LangChain
+memory = ConversationBufferMemory(memory_key="chat_history")
+
 # Função para gerar resposta do LLaMA diretamente
-def gerar_resposta_llama(query, contexto):
+def gerar_resposta_llama(query, contexto, history):
     headers = {
         "Authorization": apillama,  # Token do OpenRouter
         "Content-Type": "application/json"
@@ -32,10 +35,10 @@ def gerar_resposta_llama(query, contexto):
     data = {
         "model": "meta-llama/llama-3.1-8b-instruct:free",  # Modelo a ser utilizado
         "messages": [
-            # {
-            #     "role": "system", 
-            #     "content": "Você é um agente da area da saúde"
-            #  },
+            {
+                "role": "system", 
+                "content": "Você é um agente da area da saúde"
+            },
             {
                 "role": "user",
                 "content": f"Contexto: {contexto}"  # Contexto extraído do Qdrant
@@ -46,6 +49,14 @@ def gerar_resposta_llama(query, contexto):
             }
         ]
     }
+    
+    # Adicionando histórico da conversa ao prompt
+    if history:
+        data['messages'].insert(1, {
+            "role": "system",
+            "content": f"Histórico da conversa: {history}"
+        })
+
     response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, data=json.dumps(data))
     
     if response.status_code == 200:
@@ -76,11 +87,18 @@ def chat():
     
     # Para esta versão ajustada, vamos usar um contexto genérico por enquanto
     contexto = "Você é um agente da area da saúde"
-    
-    # Gerar resposta usando o LLaMA com o contexto adicional
-    resposta = gerar_resposta_llama(pergunta, contexto)
-    
+
+    # Carregar o histórico da memória
+    history = memory.load_memory_variables({}).get('chat_history', '')
+
+    # Gerar resposta usando o LLaMA com o contexto adicional e histórico
+    resposta = gerar_resposta_llama(pergunta, contexto, history)
+
     if resposta:
+        # Adiciona a pergunta e resposta ao histórico de memória
+        memory.chat_memory.add_user_message(pergunta)
+        memory.chat_memory.add_ai_message(resposta)
+
         return jsonify({"resposta": resposta}), 200
     else:
         return jsonify({"error": "Não foi possível gerar uma resposta."}), 500
@@ -88,3 +106,4 @@ def chat():
 # Executa a aplicação Flask
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+
